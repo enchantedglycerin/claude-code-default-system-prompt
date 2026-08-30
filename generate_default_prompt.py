@@ -18,6 +18,9 @@ Notes:
   * Nothing is sent to Anthropic — the request is redirected to a localhost logger that
     returns an error, so no tokens are spent and no model reply is produced.
   * interactive mode needs pywinpty:  pip install pywinpty
+  * A fresh/untrusted directory would otherwise hang on Claude Code's "Do you trust this
+    folder?" dialog. The tool auto-marks the cwd trusted in ~/.claude.json (exactly what
+    accepting that dialog does); pass --no-trust to skip.
   * The `# Scratchpad Directory` section contains a per-SESSION path; on reuse it is
     stale. Use --genericize (or delete that section) if you'll feed the file later.
 """
@@ -82,7 +85,41 @@ def _write(proc, s):
         pass
 
 
-def capture(mode="interactive", timeout=60):
+def ensure_trusted(cwd, enabled=True):
+    """A fresh/untrusted directory triggers Claude Code's 'Do you trust the files in this
+    folder?' dialog, which blocks a headless capture (no way to answer it programmatically).
+    Mark the dir trusted in ~/.claude.json — exactly what clicking 'Yes, I trust this folder'
+    does — so the capture can proceed. Pass --no-trust to skip this."""
+    if not enabled:
+        return
+    cfg_path = os.path.join(os.environ.get("USERPROFILE") or os.path.expanduser("~"), ".claude.json")
+    key = cwd.replace("\\", "/")           # Claude Code keys projects with forward slashes
+    try:
+        if not os.path.exists(cfg_path):
+            return
+        with open(cfg_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+        projects = cfg.setdefault("projects", {})
+        entry = projects.get(key, {})
+        if entry.get("hasTrustDialogAccepted") is True:
+            return                          # already trusted — leave config untouched
+        for k, default in (("allowedTools", []), ("mcpServers", {}),
+                           ("enabledMcpjsonServers", []), ("disabledMcpjsonServers", [])):
+            entry.setdefault(k, default)
+        entry["hasTrustDialogAccepted"] = True
+        projects[key] = entry
+        tmp = cfg_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2)
+        os.replace(tmp, cfg_path)           # atomic on same volume
+        print(f"note: marked {key} trusted in ~/.claude.json so the fresh-dir trust dialog "
+              f"won't block the capture (--no-trust to skip).", file=sys.stderr)
+    except Exception as e:
+        print(f"warning: could not pre-trust the directory ({e}); a fresh folder may hang "
+              f"on the trust dialog.", file=sys.stderr)
+
+
+def capture(mode="interactive", timeout=60, trust=True):
     state = {"captured": False, "body": None, "event": threading.Event()}
     httpd = socketserver.TCPServer(("127.0.0.1", 0), make_handler(state))
     port = httpd.server_address[1]
@@ -93,6 +130,7 @@ def capture(mode="interactive", timeout=60):
                    or k in ("AI_AGENT", "CLAUDECODE"))}
     env["ANTHROPIC_BASE_URL"] = f"http://127.0.0.1:{port}"
     cwd = os.getcwd()
+    ensure_trusted(cwd, trust)              # fresh dirs otherwise block on the trust dialog
     probe = "hi"
 
     try:
@@ -166,14 +204,18 @@ def main():
     ap.add_argument("--genericize", action="store_true",
                     help="replace machine/session paths with <PLACEHOLDERS>")
     ap.add_argument("--raw", metavar="FILE", help="also dump the full captured request JSON")
+    ap.add_argument("--no-trust", action="store_true",
+                    help="do NOT auto-mark the cwd trusted in ~/.claude.json "
+                         "(a fresh/untrusted dir will then hang on the trust dialog)")
     ap.add_argument("--timeout", type=int, default=60)
     args = ap.parse_args()
 
     print(f"Capturing live default prompt (mode={args.mode}, cwd={os.getcwd()}) ...", file=sys.stderr)
-    body = capture(mode=args.mode, timeout=args.timeout)
+    body = capture(mode=args.mode, timeout=args.timeout, trust=not args.no_trust)
     if not body:
-        print("ERROR: no request captured. Is `claude` on PATH and logged in? "
-              "Try a longer --timeout, or --mode print.", file=sys.stderr)
+        print("ERROR: no request captured. Causes: `claude` not on PATH / not logged in, "
+              "or an untrusted dir blocked on the trust dialog (don't use --no-trust in a fresh "
+              "folder). Try a longer --timeout, or --mode print.", file=sys.stderr)
         sys.exit(1)
 
     if args.raw:

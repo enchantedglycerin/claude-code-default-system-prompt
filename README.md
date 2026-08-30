@@ -13,3 +13,7 @@ Machine-specific paths are swapped for placeholders — `<USERPROFILE>`, `<PROJE
 - `--system-prompt "…"` replaces the body but keeps the identity line and all the tools.
 - `--append-system-prompt "…"` keeps the default system-prompt and tacks yours onto the end.
 - Both have `-file` variants that read from a file instead. (Ex. claude --system-prompt-file default-system-prompt.md)
+
+## regenerating
+
+`generate_default_prompt.py` re-captures this straight from your installed CLI (`pip install pywinpty` first). Run it in a fresh folder and it auto-marks the dir trusted in `~/.claude.json` — the same thing accepting Claude Code's "do you trust this folder?" dialog does — so the capture doesn't hang. Pass `--no-trust` to skip that.
