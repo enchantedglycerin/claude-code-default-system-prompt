@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Raw capture dumps — can contain your email, account/device IDs, local paths. Never commit.
+_*.json
+_real_*.json
+_capture_*.json
+request*.json
+
+# Local (non-genericized) generated prompts with real paths
+claude_default_system_prompt.md
