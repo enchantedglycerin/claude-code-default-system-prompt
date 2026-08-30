@@ -12,8 +12,4 @@ Machine-specific paths are swapped for placeholders — `<USERPROFILE>`, `<PROJE
 
 - `--system-prompt "…"` replaces the body but keeps the identity line and all the tools.
 - `--append-system-prompt "…"` keeps the default system-prompt and tacks yours onto the end.
-- Both have `-file` variants that read from a file instead.
-claude --system-prompt-file default-system-prompt.md
-```
-
-Not official, not affiliated with Anthropic — I just pulled it out of the CLI because I was curious. It'll drift whenever they ship a new version, and the prompt text itself is Anthropic's.
+- Both have `-file` variants that read from a file instead. (Ex. claude --system-prompt-file default-system-prompt.md)
