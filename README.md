@@ -1,12 +1,22 @@
 # claude-code-default-system-prompt
 
-The default system prompt that Claude Code (the `claude` CLI) sends to the model, captured from v2.1.251.
+The default system prompt that Claude Code (the `claude` CLI) sends to the model, captured from v2.1.263.
 
 ## what's actually in the system prompt
 
 Just the identity line ("You are Claude Code…") followed by the default body. The 34 tool definitions and the live environment block (working directory, OS, model, available skills, date) are sent separately by Claude Code.
 
 Machine-specific paths are swapped for placeholders — `<USERPROFILE>`, `<PROJECT_KEY>`, `<SESSION_ID>`. That last one is the session UUID that shows up in the scratchpad path; it's random every run unless you pin it with `--session-id <uuid>`.
+
+## it depends on the model
+
+Claude Code doesn't send one prompt — it sends a different one per model, sometimes wildly different. This main file is Opus 4.8; `variants/` has the rest, all captured the same way:
+
+- `opus-5.md` — adds `# Delivering work` and `# Corrections` (~2.3k tokens)
+- `fable-5.md` — adds `# Communicating with the user` (~2.6k tokens)
+- `fable-5-1.md` — the surprise: barely anything, just the identity line and `# Reporting outcomes` (~240 tokens)
+
+Grab any of them yourself with `generate_default_prompt.py --model <id>`.
 
 ## using custom system prompt
 

@@ -119,7 +119,7 @@ def ensure_trusted(cwd, enabled=True):
               f"on the trust dialog.", file=sys.stderr)
 
 
-def capture(mode="interactive", timeout=60, trust=True):
+def capture(mode="interactive", timeout=60, trust=True, model=None):
     state = {"captured": False, "body": None, "event": threading.Event()}
     httpd = socketserver.TCPServer(("127.0.0.1", 0), make_handler(state))
     port = httpd.server_address[1]
@@ -132,6 +132,7 @@ def capture(mode="interactive", timeout=60, trust=True):
     cwd = os.getcwd()
     ensure_trusted(cwd, trust)              # fresh dirs otherwise block on the trust dialog
     probe = "hi"
+    model_args = ["--model", model] if model else []   # capture another model's prompt
 
     try:
         if mode == "interactive":
@@ -141,7 +142,7 @@ def capture(mode="interactive", timeout=60, trust=True):
                 print("ERROR: interactive mode needs pywinpty.  pip install pywinpty  "
                       "(or use --mode print)", file=sys.stderr)
                 sys.exit(2)
-            proc = PtyProcess.spawn(["claude", probe], cwd=cwd, env=env, dimensions=(40, 120))
+            proc = PtyProcess.spawn(["claude"] + model_args + [probe], cwd=cwd, env=env, dimensions=(40, 120))
             start = time.time(); step = 0
             while time.time() - start < timeout and not state["captured"]:
                 try:
@@ -165,7 +166,7 @@ def capture(mode="interactive", timeout=60, trust=True):
         else:  # print / SDK entrypoint — no PTY needed (leaner prompt, no Scratchpad section)
             import subprocess
             try:
-                subprocess.run(["claude", "-p", probe], cwd=cwd, env=env,
+                subprocess.run(["claude", "-p"] + model_args + [probe], cwd=cwd, env=env,
                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL, timeout=timeout)
             except Exception:
@@ -204,19 +205,31 @@ def main():
     ap.add_argument("--genericize", action="store_true",
                     help="replace machine/session paths with <PLACEHOLDERS>")
     ap.add_argument("--raw", metavar="FILE", help="also dump the full captured request JSON")
+    ap.add_argument("--model", metavar="ID",
+                    help="capture another model's prompt (passed to `claude --model`), "
+                         "e.g. claude-sonnet-5, claude-fable-5, claude-haiku-4-5-20251001. "
+                         "Default: your configured model. (You need access to the model.)")
     ap.add_argument("--no-trust", action="store_true",
                     help="do NOT auto-mark the cwd trusted in ~/.claude.json "
                          "(a fresh/untrusted dir will then hang on the trust dialog)")
     ap.add_argument("--timeout", type=int, default=60)
     args = ap.parse_args()
 
-    print(f"Capturing live default prompt (mode={args.mode}, cwd={os.getcwd()}) ...", file=sys.stderr)
-    body = capture(mode=args.mode, timeout=args.timeout, trust=not args.no_trust)
+    print(f"Capturing live default prompt (mode={args.mode}, "
+          f"model={args.model or 'default'}, cwd={os.getcwd()}) ...", file=sys.stderr)
+    body = capture(mode=args.mode, timeout=args.timeout, trust=not args.no_trust, model=args.model)
     if not body:
         print("ERROR: no request captured. Causes: `claude` not on PATH / not logged in, "
               "or an untrusted dir blocked on the trust dialog (don't use --no-trust in a fresh "
               "folder). Try a longer --timeout, or --mode print.", file=sys.stderr)
         sys.exit(1)
+
+    actual_model = body.get("model")
+    if args.model and actual_model and actual_model != args.model:
+        print(f"WARNING: you asked for --model {args.model} but the CLI sent {actual_model} "
+              f"(that id is likely unavailable on this account, so it fell back). "
+              f"This capture is {actual_model}, NOT {args.model} — name the output accordingly.",
+              file=sys.stderr)
 
     if args.raw:
         with open(args.raw, "w", encoding="utf-8") as f:
