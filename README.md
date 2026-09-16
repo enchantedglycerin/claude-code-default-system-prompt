@@ -1,6 +1,6 @@
 # claude-code-default-system-prompt
 
-The default system prompt that Claude Code (the `claude` CLI) sends to the model, captured from v2.1.263.
+The default system prompt that Claude Code (the `claude` CLI) sends to the model, captured from v2.1.273.
 
 ## what's actually in the system prompt
 
