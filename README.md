@@ -1,10 +1,10 @@
 # claude-code-default-system-prompt
 
-The system prompt Claude Code (the `claude` CLI) sends to the model, captured from v2.1.283. There's no single "default" — Claude Code sends a different prompt per model, so `prompts/` has one file per model.
+The system prompt Claude Code (the `claude` CLI) sends to the model, captured from v2.1.285. There's no single "default" — Claude Code sends a different prompt per model, so `prompts/` has one file per model. For the *complete* set of sections (not just what one model emits), see [`HARNESS.md`](HARNESS.md).
 
 ## what's in each file
 
-Just the identity line ("You are Claude Code…") followed by that model's default body. The 34 tool definitions and the live environment block (working directory, OS, model, available skills, date) are sent separately by Claude Code, so they're not in here.
+Just the identity line ("You are Claude Code…") followed by that model's default body. The tool definitions and the live environment block (working directory, OS, model, available skills, date) are sent separately by Claude Code, so they're not in here.
 
 Machine-specific paths are swapped for placeholders — `<USERPROFILE>`, `<PROJECT_KEY>`, `<SESSION_ID>`. That last one is the session UUID that shows up in the scratchpad path; it's random every run unless you pin it with `--session-id <uuid>`.
 
@@ -18,6 +18,12 @@ The prompt differs per model, and shifts a lot between releases:
 - `fable-5-1.md` — the biggest, with `# Delivering work` and `# Writing for the user` (~3.1k tokens). In older versions this was the *minimal* one (identity + `# Reporting outcomes`, ~240 tokens) — a good example of how much these move between releases.
 
 Grab any model yourself with `generate_default_prompt.py --model <id>`.
+
+## the whole harness
+
+A per-model file only shows the sections that fired for that model. [`HARNESS.md`](HARNESS.md) is the full map — **every** section Claude Code can put in the prompt, each with the exact condition that switches it on (env var, experiment flag, model, mode) — including ones no capture triggers, like the expanded-mode `# System` block, the Fable identity, and the opus-5 delegation limiter. Reconstructed by static extraction from the binary and cross-checked against the live captures.
+
+The method is in [`tools/`](tools): `extract_bundle.py` carves the JS bundle out of your own `claude` binary (it's Bun-compiled — JavaScript source, no decompiler needed), and `analyze.py` reads/beautifies any function from it. The extracted bundle is Anthropic's code, so it's gitignored, not shipped — run the tools on your own install.
 
 ## using a custom system prompt
 

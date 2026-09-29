@@ -10,3 +10,8 @@ request*.json
 
 # Local (non-genericized) generated prompts with real paths
 claude_default_system_prompt.md
+
+# Extracted JS bundle (Anthropic's code) + analysis scratch — never commit
+_bundle.js
+_sections.txt
+_*.md
