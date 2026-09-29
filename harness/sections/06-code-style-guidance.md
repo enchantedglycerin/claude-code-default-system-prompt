@@ -1,0 +1,2 @@
+### code-style guidance (`boo`)  · expanded + `keepCodingInstructions`
+"Don't add features/abstractions beyond the task… Don't add error handling for scenarios that can't happen… Default to writing no comments (only when the WHY is non-obvious)… don't explain WHAT the code does… For UI changes, run the dev server and test in a browser before reporting done… Be careful not to introduce OWASP-top-10 vulns… Prefer editing existing files to creating new ones…" (+ `/help` and feedback lines).
